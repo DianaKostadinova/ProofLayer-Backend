@@ -8,6 +8,7 @@ from routes.upload import router as upload_router
 from routes.register import router as register_router
 from routes.verify import router as verify_router
 from routes.media import router as media_router
+from routes.history import router as history_router
 
 
 @asynccontextmanager
@@ -35,6 +36,7 @@ app.include_router(upload_router, tags=["media"])
 app.include_router(register_router, tags=["provenance"])
 app.include_router(verify_router, tags=["verification"])
 app.include_router(media_router, tags=["media"])
+app.include_router(history_router, tags=["history"])
 
 
 @app.get("/health")
