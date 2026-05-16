@@ -3,12 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
 import traceback
+import logging
 
 from models.schemas import RegisterRequest, RegisterResponse
 from services.solana import register_media
 from utils.db import get_db, MediaRecord
 from utils.cache import invalidate_verification
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -17,10 +19,17 @@ async def register_provenance(
     body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    logger.info(f"Register request: hash={body.hash[:16]}... wallet={body.wallet_address}")
+
     # Prevent duplicate registrations
-    existing = await db.execute(
-        select(MediaRecord).where(MediaRecord.sha256_hash == body.hash)
-    )
+    try:
+        existing = await db.execute(
+            select(MediaRecord).where(MediaRecord.sha256_hash == body.hash)
+        )
+    except Exception as db_exc:
+        logger.error(f"DB query failed: {db_exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database unreachable: {db_exc}")
+
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Media already registered on-chain")
 

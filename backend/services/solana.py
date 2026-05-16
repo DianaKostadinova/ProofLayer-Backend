@@ -9,11 +9,14 @@ frontend via Phantom. This service:
   - Decodes raw Anchor account bytes without needing anchorpy
 """
 import base64
+import logging
 import struct
 import httpx
 from datetime import datetime, timezone
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 async def _rpc(method: str, params: list) -> dict:
@@ -89,9 +92,29 @@ async def register_media(
     In dev mode (SOLANA_PROGRAM_ID unset) returns a mock signature so the
     rest of the pipeline stays testable without a live cluster.
     """
-    if not settings.solana_program_id:
-        mock_sig = f"MOCK_{sha256_hash[:16]}_{int(datetime.now(timezone.utc).timestamp())}"
-        return mock_sig
+    program_id = (settings.solana_program_id or "").strip().split("#")[0].strip()
+
+    def _looks_like_pubkey(s: str) -> bool:
+        # Solana pubkeys are 32-44 base58 chars
+        if not (32 <= len(s) <= 44):
+            return False
+        import string
+        b58 = set(string.ascii_letters + string.digits) - set("0OIl")
+        return all(c in b58 for c in s)
+
+    # Mock mode: no program ID set OR the value is junk (e.g. inline .env comment)
+    valid_pid = _looks_like_pubkey(program_id)
+    is_mock_sig = tx_signature.startswith("MOCK_")
+    logger.info(
+        f"register_media  program_id={program_id!r}  valid_pid={valid_pid}  "
+        f"tx_sig_starts={tx_signature[:8]!r}  is_mock_sig={is_mock_sig}"
+    )
+    if not valid_pid or is_mock_sig:
+        sig = f"MOCK_{sha256_hash[:16]}_{int(datetime.now(timezone.utc).timestamp())}"
+        logger.info(f"register_media  → MOCK MODE, returning {sig}")
+        return sig
+
+    logger.info("register_media  → REAL CHAIN, calling getTransaction RPC")
 
     result = await _rpc(
         "getTransaction",
@@ -114,7 +137,7 @@ async def register_media(
         .get("message", {})
         .get("accountKeys", [])
     )
-    if settings.solana_program_id not in account_keys:
+    if program_id not in account_keys:
         raise ValueError("Transaction did not call the proof_layer program")
 
     return tx_signature

@@ -3,14 +3,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import traceback
+import logging
+import httpx
 
 from config import settings
-from utils.db import init_db
+from utils.db import init_db, AsyncSessionLocal
+from sqlalchemy import text
 from routes.upload import router as upload_router
 from routes.register import router as register_router
 from routes.verify import router as verify_router
 from routes.media import router as media_router
 from routes.history import router as history_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+)
 
 
 @asynccontextmanager
@@ -51,3 +59,50 @@ app.include_router(history_router, tags=["history"])
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/health/detail")
+async def health_detail():
+    """Check every downstream dependency — open this in your browser to diagnose 500s."""
+    result = {}
+
+    # PostgreSQL
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        result["database"] = "ok"
+    except Exception as exc:
+        result["database"] = f"ERROR: {exc}"
+
+    # Redis
+    try:
+        from utils.cache import _get_client
+        client = _get_client()
+        if client is None:
+            result["redis"] = "skipped (redis library not installed)"
+        else:
+            await client.ping()
+            result["redis"] = "ok"
+    except Exception as exc:
+        result["redis"] = f"ERROR: {exc}"
+
+    # AI service
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as c:
+            r = await c.get(f"{settings.ai_service_url}/health")
+            result["ai_service"] = "ok" if r.status_code == 200 else f"HTTP {r.status_code}"
+    except Exception as exc:
+        result["ai_service"] = f"ERROR (is ai service running on port 8001?): {exc}"
+
+    # Config snapshot
+    result["config"] = {
+        "solana_program_id": settings.solana_program_id or "(empty — mock mode)",
+        "ai_service_url": settings.ai_service_url,
+        "pinata_configured": bool(settings.pinata_jwt or settings.pinata_api_key),
+    }
+
+    result["overall"] = "ok" if all(
+        v == "ok" for k, v in result.items() if k not in ("config", "redis", "overall")
+    ) else "degraded"
+
+    return result
