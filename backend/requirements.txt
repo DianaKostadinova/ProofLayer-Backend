@@ -1,0 +1,25 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pydantic==2.8.2
+pydantic-settings==2.4.0
+
+# Database
+sqlalchemy==2.0.35
+asyncpg==0.29.0
+alembic==1.13.3
+
+# HTTP client
+httpx==0.27.2
+
+# Hashing / image
+Pillow==10.4.0
+ImageHash==4.3.1
+
+# Solana (optional — install when wiring up on-chain tx)
+# solders==0.21.0
+# anchorpy==0.20.1
+# base58==2.1.1
+
+# Redis (optional — for caching)
+# redis[asyncio]==5.1.0
