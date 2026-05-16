@@ -9,9 +9,12 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def phash_bytes(data: bytes) -> str:
-    """Perceptual hash for similarity comparison — images only."""
-    image = Image.open(io.BytesIO(data)).convert("RGB")
-    return str(imagehash.phash(image))
+    """Perceptual hash for similarity comparison — images only. Returns empty string for video/unsupported."""
+    try:
+        image = Image.open(io.BytesIO(data)).convert("RGB")
+        return str(imagehash.phash(image))
+    except Exception:
+        return ""
 
 
 def phash_distance(hash_a: str, hash_b: str) -> int:
