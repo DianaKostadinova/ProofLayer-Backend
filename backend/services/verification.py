@@ -53,11 +53,8 @@ async def _best_similarity(file_phash: str, db: AsyncSession) -> int:
 
     best = 0
     for record in records:
-        # pHash is stored in the filename field as workaround until we add a column
-        # Production: add phash column to MediaRecord
-        stored_phash = getattr(record, "phash", None)
-        if stored_phash:
-            score = similarity_score(file_phash, stored_phash)
+        if record.phash:
+            score = similarity_score(file_phash, record.phash)
             best = max(best, score)
 
     return best

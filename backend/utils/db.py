@@ -23,6 +23,7 @@ class MediaRecord(Base):
     wallet_address: Mapped[str] = mapped_column(String(44), nullable=False, index=True)
     tx_signature: Mapped[str] = mapped_column(String(128), nullable=False)
     filename: Mapped[str] = mapped_column(String(256), nullable=True)
+    phash: Mapped[str] = mapped_column(String(64), nullable=True)
     registered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

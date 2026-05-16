@@ -8,6 +8,7 @@ from datetime import datetime
 class UploadResponse(BaseModel):
     hash: str
     cid: str
+    phash: str
     filename: str
     size_bytes: int
 
@@ -17,8 +18,9 @@ class UploadResponse(BaseModel):
 class RegisterRequest(BaseModel):
     hash: str
     cid: str
+    phash: str
     wallet_address: str
-    signature: str  # signed message from wallet proving ownership
+    signature: str  # ed25519 signature of hash, signed by wallet private key
 
 
 class RegisterResponse(BaseModel):
