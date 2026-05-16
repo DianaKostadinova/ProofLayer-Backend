@@ -24,7 +24,7 @@ class MediaRecord(Base):
     tx_signature: Mapped[str] = mapped_column(String(128), nullable=False)
     filename: Mapped[str] = mapped_column(String(256), nullable=True)
     phash: Mapped[str] = mapped_column(String(64), nullable=True)
-    registered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class VerificationLog(Base):
@@ -35,7 +35,7 @@ class VerificationLog(Base):
     similarity: Mapped[int] = mapped_column(Integer, nullable=False)
     deepfake_probability: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 async def init_db():

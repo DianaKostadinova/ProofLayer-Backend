@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
+import traceback
 
 from models.schemas import RegisterRequest, RegisterResponse
 from services.solana import register_media
-from services.auth import verify_wallet_signature
 from utils.db import get_db, MediaRecord
 from utils.cache import invalidate_verification
 
@@ -17,9 +17,6 @@ async def register_provenance(
     body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    if not verify_wallet_signature(body.wallet_address, body.hash, body.signature):
-        raise HTTPException(status_code=401, detail="Invalid wallet signature")
-
     # Prevent duplicate registrations
     existing = await db.execute(
         select(MediaRecord).where(MediaRecord.sha256_hash == body.hash)
@@ -28,11 +25,12 @@ async def register_provenance(
         raise HTTPException(status_code=409, detail="Media already registered on-chain")
 
     try:
+        # Verify the on-chain tx and get back the confirmed signature
         tx_sig = await register_media(
             sha256_hash=body.hash,
             ipfs_cid=body.cid,
             wallet_address=body.wallet_address,
-            wallet_signature=body.signature,
+            tx_signature=body.signature,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Solana registration failed: {exc}")
@@ -46,8 +44,12 @@ async def register_provenance(
         phash=body.phash,
         registered_at=now,
     )
-    db.add(record)
-    await db.commit()
+    try:
+        db.add(record)
+        await db.commit()
+    except Exception as db_exc:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"DB error: {db_exc}")
     await invalidate_verification(body.hash)
 
     return RegisterResponse(

@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import traceback
 
 from config import settings
 from utils.db import init_db
@@ -23,6 +25,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.exception_handler(Exception)
+async def _debug_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    print(f"\n=== UNHANDLED EXCEPTION ===\n{tb}=== END ===\n")
+    return JSONResponse(status_code=500, content={"detail": str(exc), "type": type(exc).__name__})
+
 
 app.add_middleware(
     CORSMiddleware,

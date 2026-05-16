@@ -18,9 +18,9 @@ class UploadResponse(BaseModel):
 class RegisterRequest(BaseModel):
     hash: str
     cid: str
-    phash: str
+    phash: Optional[str] = ""   # empty for video files — phash only works on images
     wallet_address: str
-    signature: str  # ed25519 signature of hash, signed by wallet private key
+    signature: str  # Solana tx signature from the user's wallet (or MOCK_ in dev mode)
 
 
 class RegisterResponse(BaseModel):
